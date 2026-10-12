@@ -1,0 +1,23 @@
+[package]
+name = "erechnung-validator"
+description = "KoSIT- und Mustang-Validierung für EN-16931-E-Rechnungen (CII/UBL) in reinem Rust: originale XSLT/XSD-Artefakte, oxixml-Engine, WASI-tauglich"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+keywords = ["xrechnung", "zugferd", "factur-x", "en16931", "e-rechnung"]
+categories = ["finance", "parser-implementations", "wasm"]
+
+[dependencies]
+oxixml-xslt.workspace = true
+oxixml-schema.workspace = true
+oxixml-infoset.workspace = true
+oxixml-schematron.workspace = true
+roxmltree.workspace = true
+# PDF-Container lesen (ZUGFeRD/Factur-X): eingebettetes Rechnungs-XML entpacken.
+# Schlank gehalten (keine Default-Features: ohne rayon/jiff/time/chrono) -> wasm-tauglich.
+lopdf = { version = "0.44", default-features = false }
+serde.workspace = true
+serde_json.workspace = true

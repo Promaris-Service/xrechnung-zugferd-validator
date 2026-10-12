@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  native:
+    name: nativ (Tests, Release-CLI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # RUSTFLAGS (nicht CARGO_BUILD_RUSTFLAGS) ist nötig: Letzteres entspricht
+      # build.rustflags und hat die NIEDRIGSTE Vorrangstufe, überschreibt also das
+      # `-C target-cpu=native` aus [target.x86_64-unknown-linux-gnu] in
+      # .cargo/config.toml NICHT. Das veröffentlichte Binary wäre sonst auf die CPU
+      # des Runners zugeschnitten und stürzte anderswo mit SIGILL ab.
+      # Nur im nativen Job setzen: der WASI-Job braucht seine Target-Rustflags
+      # (64-MiB-Shadow-Stack) unangetastet.
+      - run: cargo test --workspace --release
+        env:
+          RUSTFLAGS: ""
+      - run: cargo build --release -p erechnung-validator-cli
+        env:
+          RUSTFLAGS: ""
+      - run: ./target/release/erechnung-validator --kurz crates/core/tests/belege
+      - uses: actions/upload-artifact@v4
+        with:
+          name: erechnung-validator-linux-x86_64
+          path: target/release/erechnung-validator
+
+  wasi:
+    name: WASI-Components (wasm32-wasip2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --target wasm32-wasip2 -p erechnung-validator-wasi -p erechnung-validator-cli
+      - name: Component pruefen (wasm-tools)
+        run: |
+          cargo install wasm-tools --locked
+          wasm-tools component wit target/wasm32-wasip2/release/erechnung_validator_wasi.wasm | head -40
+      - name: Rauchtest mit wasmtime
+        run: |
+          curl -sSfL https://wasmtime.dev/install.sh | bash
+          ~/.wasmtime/bin/wasmtime run -W max-wasm-stack=67108864 --dir crates/core/tests/belege::/belege \
+            target/wasm32-wasip2/release/erechnung-validator.wasm -- --kurz /belege
+      - uses: actions/upload-artifact@v4
+        with:
+          name: erechnung-validator-wasi
+          path: |
+            target/wasm32-wasip2/release/erechnung_validator_wasi.wasm
+            target/wasm32-wasip2/release/erechnung-validator.wasm
+            crates/component/wit/validator.wit
+
+  release:
+    name: Release-Artefakte anhaengen
+    needs: [native, wasi]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - run: ls -R dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/erechnung-validator-wasi/erechnung_validator_wasi.wasm
+            dist/erechnung-validator-wasi/erechnung-validator.wasm
+            dist/erechnung-validator-wasi/validator.wit
+            dist/erechnung-validator-linux-x86_64/erechnung-validator

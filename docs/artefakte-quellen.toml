@@ -1,0 +1,22 @@
+# Herkunft und fixierte Versionen der eingebetteten Pruefartefakte.
+# Von scripts/pruefe-artefakt-updates.py gegen die neuesten Upstream-Releases geprueft.
+# Bei neuer Version: Artefakte aktualisieren, vorverarbeiten, neu kompilieren, 255/255
+# gegen die neue KoSIT-/Mustang-Referenz pruefen (siehe docs/perf/.. und README).
+
+[kosit_xrechnung]
+beschreibung = "KoSIT validator-configuration-xrechnung (XRechnung-Schematron, Szenarien, XSDs)"
+repo = "itplr-kosit/validator-configuration-xrechnung"
+fixiert = "v2026-08-31"   # XRechnung 3.0.2
+verzeichnis = "crates/core/artefakte/kosit"
+
+[en16931]
+beschreibung = "CEN/TC 434 EN 16931 Schematron (ConnectingEurope)"
+repo = "ConnectingEurope/eInvoicing-EN16931"
+fixiert = "validation-1.3.16"
+verzeichnis = "crates/core/artefakte/kosit/cen"
+
+[mustang]
+beschreibung = "Mustang (bundelt Factur-X/ZUGFeRD-Schematron + XSDs von FeRD/FNFE-MPE)"
+repo = "ZUGFeRD/mustangproject"
+fixiert = "core-2.26.0"
+verzeichnis = "crates/core/artefakte/mustang"

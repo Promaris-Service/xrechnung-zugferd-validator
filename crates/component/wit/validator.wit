@@ -1,0 +1,114 @@
+package promaris:erechnung@0.1.0;
+
+/// E-Rechnungs-Validierung (EN 16931, CII und UBL) mit den originalen Pruefartefakten
+/// von KoSIT (XRechnung 3.0.2) und Mustang (Factur-X 1.0), ausgefuehrt in reinem Rust.
+interface pruefung {
+    /// Schweregrad nach Werkzeugregeln (KoSIT: customLevel, Mustang: flag).
+    enum stufe { information, warnung, fehler }
+
+    /// Syntax des Belegs, aus dem Wurzelelement bestimmt.
+    enum syntax { cii, ubl-invoice, ubl-creditnote }
+
+    /// Ein Schematron-Befund im Wortlaut des Artefakts.
+    record befund {
+        /// Regel-ID (BR-S-05, CII-SR-013, BR-DE-1 …), leer wenn das Artefakt keine liefert.
+        regel: string,
+        stufe: stufe,
+        /// Unveraenderter SVRL-flag (fatal, warning, leer …).
+        flag: string,
+        /// XPath-Ort im Beleg.
+        ort: string,
+        text: string,
+        /// Artefakt-Dateiname, aus dem der Befund stammt.
+        quelle: string,
+    }
+
+    record bericht {
+        /// KoSIT: Szenarioname, Mustang: Profilname.
+        szenario: string,
+        syntax: syntax,
+        /// CustomizationID (UBL) bzw. Guideline-ID (CII).
+        kennung: string,
+        xsd-gueltig: bool,
+        xsd-fehler: list<string>,
+        befunde: list<befund>,
+        /// XSD bestanden und kein Befund der Stufe fehler.
+        angenommen: bool,
+        /// Reine Pruefdauer in Millisekunden.
+        dauer-ms: u64,
+        /// Stand der eingebetteten Artefakte.
+        artefakte: string,
+    }
+
+    /// Welche KoSIT-Szenarien gelten.
+    enum szenarien {
+        /// Offizielle Konfiguration XRechnung 3.0.2 (nur exakte Kennungen; Factur-X: kein Szenario).
+        xrechnung-3-0-2,
+        /// EN16931-Kernregeln fuer jeden CII-/UBL-Beleg.
+        en16931-alle,
+        /// Erst offiziell, sonst Kernregeln.
+        automatisch,
+    }
+
+    /// Fehler, die eine Pruefung verhindern (kein Beleg-Befund).
+    variant fehler {
+        /// Kein XML oder kein Rechnungstyp.
+        dokument(string),
+        /// Kein KoSIT-Szenario fuer diese Kennung.
+        kein-szenario(string),
+        /// Mustang kennt das Profil nicht.
+        unbekanntes-profil(string),
+        /// Engine-Fehler beim Kompilieren oder Ausfuehren.
+        engine(string),
+    }
+
+    /// Bericht fuer eine ZUGFeRD/Factur-X-PDF: wie `bericht`, zusaetzlich der Name des
+    /// extrahierten eingebetteten XML und (falls geprueft) das PDF/A-Urteil.
+    record pdf-bericht {
+        /// Dateiname des eingebetteten Rechnungs-XML (z. B. factur-x.xml).
+        eingebettet: string,
+        /// PDF/A-Konformitaetsurteil; leer, solange der Core keine PDF/A-Pruefung liefert.
+        pdf-a: string,
+        /// Das Pruefergebnis des eingebetteten XML (KoSIT-Weg).
+        bericht: bericht,
+    }
+
+    /// Pruefung wie der KoSIT-Validator.
+    kosit: func(xml: string, szenarien: szenarien) -> result<bericht, fehler>;
+
+    /// ZUGFeRD/Factur-X-PDF pruefen: eingebettetes Rechnungs-XML entpacken, dann wie `kosit`.
+    /// `fehler.dokument` deckt sowohl kaputte PDF als auch fehlendes Rechnungs-XML ab.
+    kosit-pdf: func(pdf: list<u8>, szenarien: szenarien) -> result<pdf-bericht, fehler>;
+
+    /// Pruefung wie Mustang (XML-Teil).
+    mustang: func(xml: string) -> result<bericht, fehler>;
+
+    /// Beide Werkzeuge auf einem einmal geparsten Beleg.
+    beide: func(xml: string, szenarien: szenarien) -> tuple<result<bericht, fehler>, result<bericht, fehler>>;
+
+    /// Ergebnis beider Pruefer auf einer ZUGFeRD/Factur-X-PDF, plus Herkunft des XML.
+    record beide-pdf-bericht {
+        /// Dateiname des eingebetteten Rechnungs-XML (z. B. factur-x.xml).
+        eingebettet: string,
+        /// PDF/A-Konformitaetsurteil; leer, solange der Core keine PDF/A-Pruefung liefert.
+        pdf-a: string,
+        /// KoSIT-Urteil auf dem eingebetteten XML.
+        kosit: result<bericht, fehler>,
+        /// Mustang-Urteil auf demselben XML (kein-Profil bleibt als `fehler`).
+        mustang: result<bericht, fehler>,
+    }
+
+    /// ZUGFeRD/Factur-X-PDF pruefen: eingebettetes Rechnungs-XML EINMAL entpacken und dann
+    /// beide Werkzeuge darauf fahren. Aeusserer `fehler` = kaputte PDF / kein Rechnungs-XML.
+    beide-pdf: func(pdf: list<u8>, szenarien: szenarien) -> result<beide-pdf-bericht, fehler>;
+
+    /// Alle Artefakte vorab kompilieren (Dienststart, rund 6 s).
+    vorwaermen: func() -> result<_, fehler>;
+
+    /// Stand der eingebetteten Artefakte.
+    artefakte: func() -> string;
+}
+
+world validator {
+    export pruefung;
+}

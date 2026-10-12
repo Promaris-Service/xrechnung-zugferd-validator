@@ -1,0 +1,74 @@
+a/src/program.rs	2006-07-24 03:21:28.000000000 +0200
+a/src/program.rs	2026-10-09 14:23:21.528323521 +0200
+@@ -8,6 +8,7 @@
+ //! patterns that need one are routed to the back-tracking interpreter instead.
+ 
+ use std::rc::Rc;
++use std::sync::Arc;
+ 
+ use crate::ast::Ast;
+ use crate::charclass::{ClassExpr, any_variant};
+@@ -23,7 +24,7 @@
+     /// Matches exactly one literal character (case-folded when requested).
+     Literal(char),
+     /// Matches a character class.
+-    Class(Rc<ClassExpr>),
++    Class(Arc<ClassExpr>),
+ }
+ 
+ impl Matcher {
+@@ -97,7 +98,7 @@
+     match node {
+         Ast::Empty => {}
+         Ast::Literal(c) => insts.push(Inst::Char(Matcher::Literal(*c))),
+-        Ast::Class(cl) => insts.push(Inst::Char(Matcher::Class(Rc::new(cl.clone())))),
++        Ast::Class(cl) => insts.push(Inst::Char(Matcher::Class(Arc::new(cl.clone())))),
+         Ast::AnchorStart => insts.push(Inst::AssertStart),
+         Ast::AnchorEnd => insts.push(Inst::AssertEnd),
+         Ast::Concat(items) => {
+@@ -171,7 +172,7 @@
+         // program compiled this way against an input that long. A nullable
+         // body has no such floor, and is still rejected.
+         if !inner.is_nullable() {
+-            insts.push(Inst::Char(Matcher::Class(Rc::new(ClassExpr::never()))));
++            insts.push(Inst::Char(Matcher::Class(Arc::new(ClassExpr::never()))));
+             return Ok(());
+         }
+         return Err(RegexError::InvalidPattern(
+--- /home/daylight/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oxixml-regex-0.1.2//src/backtrack.rs	2006-07-24 03:21:28.000000000 +0200
++++ /tmp/claude-1000/-home-daylight/ce6b4357-d855-4398-b9ab-2aa8ee851006/scratchpad/vendor/oxixml-regex/src/backtrack.rs	2026-10-09 14:23:21.532761467 +0200
+@@ -19,6 +19,7 @@
+ //!   [`BtInst::LoopBack`]) so a body that matches the empty string cannot spin.
+ 
+ use std::rc::Rc;
++use std::sync::Arc;
+ 
+ use crate::ast::Ast;
+ use crate::charclass::{ClassExpr, any_variant};
+@@ -49,7 +50,7 @@
+     /// Consume one input character if it matches a literal.
+     Literal(char),
+     /// Consume one input character if it matches a class.
+-    Class(Rc<ClassExpr>),
++    Class(Arc<ClassExpr>),
+     /// Accept the match.
+     Match,
+     /// Continue at the given instruction.
+@@ -108,7 +109,7 @@
+     match node {
+         Ast::Empty => {}
+         Ast::Literal(c) => insts.push(BtInst::Literal(*c)),
+-        Ast::Class(cl) => insts.push(BtInst::Class(Rc::new(cl.clone()))),
++        Ast::Class(cl) => insts.push(BtInst::Class(Arc::new(cl.clone()))),
+         Ast::AnchorStart => insts.push(BtInst::AssertStart),
+         Ast::AnchorEnd => insts.push(BtInst::AssertEnd),
+         Ast::Backref(n) => insts.push(BtInst::Backref(*n)),
+@@ -175,7 +176,7 @@
+         // always fails, which is the right answer for every input shorter than
+         // the bound.
+         if !inner.is_nullable() {
+-            insts.push(BtInst::Class(Rc::new(ClassExpr::never())));
++            insts.push(BtInst::Class(Arc::new(ClassExpr::never())));
+             return Ok(());
+         }
+         return Err(RegexError::InvalidPattern(

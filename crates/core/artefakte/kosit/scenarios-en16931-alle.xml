@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Eigene Szenarien: EN 16931 fuer JEDEN CII-/UBL-Beleg, unabhaengig von der Profil-URN.
+     Die mitgelieferte scenarios.xml trifft nur XRechnung 3.0.2; unsere Lieferanten schicken
+     ueberwiegend ZUGFeRD/Factur-X (EN16931, EXTENDED) und Peppol-CII. Geprueft wird hier
+     gegen dieselben CEN-Schematron-Regeln (EN16931-*-validation.xsl aus derselben Konfiguration),
+     ohne die XRechnung-CIUS-Regeln, die fuer diese Belege nicht gelten. -->
+<scenarios xmlns="http://www.xoev.de/de/validator/framework/1/scenarios" frameworkVersion="1.0.0">
+  <name>EN16931 fuer alle CII-/UBL-Belege</name>
+  <author>Promaris</author>
+  <date>2026-09-24</date>
+  <description><p>CEN-Schematron EN 16931 ohne nationale CIUS-Regeln, Treffer am Wurzelelement.</p></description>
+
+  <scenario>
+    <name>EN16931 (CII, beliebiges Profil)</name>
+    <description><p>Jede CrossIndustryInvoice — ZUGFeRD, Factur-X, Peppol-CII, XRechnung-CII.</p></description>
+    <namespace prefix="rsm">urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100</namespace>
+    <namespace prefix="ram">urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100</namespace>
+    <namespace prefix="rep">http://www.xoev.de/de/validator/varl/1</namespace>
+    <match>exists(/rsm:CrossIndustryInvoice)</match>
+    <validateWithXmlSchema>
+      <resource>
+        <name>XML Schema CII D16B</name>
+        <location>resources/cii/16b/xsd/CrossIndustryInvoice_100pD16B.xsd</location>
+      </resource>
+    </validateWithXmlSchema>
+    <validateWithSchematron>
+      <resource>
+        <name>Schematron rules for EN16931 (CII)</name>
+        <location>resources/cii/16b/xsl/EN16931-CII-validation.xsl</location>
+      </resource>
+    </validateWithSchematron>
+    <createReport>
+      <resource>
+        <name>Validation report</name>
+        <location>resources/xrechnung-report.xsl</location>
+      </resource>
+    </createReport>
+    <acceptMatch>/rep:report/rep:assessment[1]/rep:accept[1]</acceptMatch>
+  </scenario>
+
+  <scenario>
+    <name>EN16931 (UBL Invoice, beliebiges Profil)</name>
+    <description><p>Jede UBL-Invoice — Peppol BIS, XRechnung-UBL.</p></description>
+    <namespace prefix="cbc">urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2</namespace>
+    <namespace prefix="invoice">urn:oasis:names:specification:ubl:schema:xsd:Invoice-2</namespace>
+    <namespace prefix="rep">http://www.xoev.de/de/validator/varl/1</namespace>
+    <match>exists(/invoice:Invoice)</match>
+    <validateWithXmlSchema>
+      <resource>
+        <name>XML Schema for UBL 2.1 Invoice</name>
+        <location>resources/ubl/2.1/xsd/maindoc/UBL-Invoice-2.1.xsd</location>
+      </resource>
+    </validateWithXmlSchema>
+    <validateWithSchematron>
+      <resource>
+        <name>Schematron rules for EN16931 (UBL)</name>
+        <location>resources/ubl/2.1/xsl/EN16931-UBL-validation.xsl</location>
+      </resource>
+    </validateWithSchematron>
+    <createReport>
+      <resource>
+        <name>Validation report</name>
+        <location>resources/xrechnung-report.xsl</location>
+      </resource>
+    </createReport>
+    <acceptMatch>/rep:report/rep:assessment[1]/rep:accept[1]</acceptMatch>
+  </scenario>
+
+  <scenario>
+    <name>EN16931 (UBL CreditNote, beliebiges Profil)</name>
+    <description><p>Jede UBL-CreditNote — Gutschriften im Peppol-/XRechnung-Format.</p></description>
+    <namespace prefix="cbc">urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2</namespace>
+    <namespace prefix="cn">urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2</namespace>
+    <namespace prefix="rep">http://www.xoev.de/de/validator/varl/1</namespace>
+    <match>exists(/cn:CreditNote)</match>
+    <validateWithXmlSchema>
+      <resource>
+        <name>XML Schema for UBL 2.1 CreditNote</name>
+        <location>resources/ubl/2.1/xsd/maindoc/UBL-CreditNote-2.1.xsd</location>
+      </resource>
+    </validateWithXmlSchema>
+    <validateWithSchematron>
+      <resource>
+        <name>Schematron rules for EN16931 (UBL)</name>
+        <location>resources/ubl/2.1/xsl/EN16931-UBL-validation.xsl</location>
+      </resource>
+    </validateWithSchematron>
+    <createReport>
+      <resource>
+        <name>Validation report</name>
+        <location>resources/xrechnung-report.xsl</location>
+      </resource>
+    </createReport>
+    <acceptMatch>/rep:report/rep:assessment[1]/rep:accept[1]</acceptMatch>
+  </scenario>
+
+  <noScenarioReport>
+    <resource>
+      <name>Default Report</name>
+      <location>resources/default-report.xsl</location>
+    </resource>
+  </noScenarioReport>
+</scenarios>

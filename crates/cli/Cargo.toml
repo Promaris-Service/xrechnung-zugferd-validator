@@ -1,0 +1,20 @@
+[package]
+name = "erechnung-validator-cli"
+description = "Kommandozeile: nativ (alle Kerne) oder als WASI-Command-Component"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "erechnung-validator"
+path = "src/main.rs"
+
+[dependencies]
+erechnung-validator = { path = "../core" }
+serde_json.workspace = true
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+mimalloc = "0.1"

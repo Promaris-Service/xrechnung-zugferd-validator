@@ -1,0 +1,34 @@
+# Woechentlicher Check auf neue KoSIT-/EN16931-/Mustang-Artefaktversionen.
+# Bei neuer Version wird ein Issue angelegt (Forgejo-API).
+name: artefakt-updates
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # jeden Montag 06:00
+  workflow_dispatch: {}
+
+jobs:
+  pruefen:
+    runs-on: uriel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upstream-Versionen pruefen
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_MIRROR_TOKEN }}
+        run: |
+          set +e
+          BERICHT=$(python3 scripts/pruefe-artefakt-updates.py 2>&1)
+          CODE=$?
+          echo "$BERICHT"
+          { echo "bericht<<EOF"; echo "$BERICHT"; echo "EOF"; echo "code=$CODE"; } >> "$GITHUB_OUTPUT"
+      - name: Issue bei Updates anlegen
+        if: steps.check.outputs.code == '10'
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITEATOKEN }}
+        run: |
+          TITEL="Artefakt-Updates verfuegbar (KoSIT/EN16931/Mustang)"
+          BODY=$(python3 -c "import json,sys;print(json.dumps(sys.stdin.read()))" <<< "${{ steps.check.outputs.bericht }}")
+          curl -fsSL -X POST \
+            "${GITHUB_API_URL%/api/v1}/api/v1/repos/${GITHUB_REPOSITORY}/issues" \
+            -H "Authorization: token ${FORGEJO_TOKEN}" -H "Content-Type: application/json" \
+            -d "{\"title\":\"${TITEL}\",\"body\":${BODY}}"

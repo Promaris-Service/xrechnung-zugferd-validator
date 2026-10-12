@@ -1,0 +1,17 @@
+[package]
+name = "host-wasmtime"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Beispiel-Host: laedt erechnung_validator_wasi.wasm mit wasmtime und ruft kosit/mustang auf"
+
+[dependencies]
+wasmtime = "49"
+wasmtime-wasi = "49"
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1

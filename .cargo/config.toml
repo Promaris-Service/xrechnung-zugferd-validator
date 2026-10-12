@@ -1,0 +1,10 @@
+# Maximale Performance und genug Stack fuer die tiefen EN-16931-Stylesheets.
+[target.wasm32-wasip2]
+rustflags = [
+  "-C", "target-feature=+simd128,+bulk-memory,+nontrapping-fptoint,+sign-ext,+mutable-globals,+multivalue,+reference-types",
+  # Shadow-Stack im linearen Speicher: 64 MiB (Validator::STACK_BYTES).
+  "-C", "link-arg=-zstack-size=67108864",
+]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=native"]

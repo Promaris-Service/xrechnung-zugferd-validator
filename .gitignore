@@ -1,0 +1,7 @@
+target/
+examples/host-wasmtime/target/
+*.svrl
+
+# lokale Arbeitsartefakte (nie veröffentlichen)
+.worker-review/
+.claude/
