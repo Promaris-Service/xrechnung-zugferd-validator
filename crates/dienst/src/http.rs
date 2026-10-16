@@ -1,6 +1,7 @@
 // Die HTTP-Schicht: ein kleiner tiny_http-Server mit festem Worker-Satz.
 //   GET  /health   -> "ok"
 //   POST /validate  <XML im Body> -> JSON-Bericht
+//   GET  /count    -> {"gesamt":N,...} (privat, nur Loopback)
 //
 // Es wird NIE ein Request-Body protokolliert oder abgelegt. Hoechstens eine inhaltslose
 // Statuszeile (Methode, Pfad, Code, Dauer) geht nach stderr. Upload-Grenze und Timeout
@@ -12,6 +13,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::Result;
+use crate::zaehler::Zaehler;
 use tiny_http::{Header, Method, Request, Response, Server};
 
 use crate::antwort::Urteil;
@@ -19,19 +21,21 @@ use crate::motor::Motor;
 
 const WORKER: usize = 4;
 
-pub fn serve(addr: SocketAddr, motor: Motor, max_body: usize) -> Result<()> {
+pub fn serve(addr: SocketAddr, motor: Motor, max_body: usize, zaehler: Zaehler) -> Result<()> {
     let server = Server::http(addr).map_err(|e| anyhow::anyhow!("Server binden: {e}"))?;
     let server = Arc::new(server);
     let motor = Arc::new(motor);
+    let zaehler = Arc::new(zaehler);
 
     let mut handles = Vec::new();
     for _ in 0..WORKER {
         let server = Arc::clone(&server);
         let motor = Arc::clone(&motor);
+        let zaehler = Arc::clone(&zaehler);
         handles.push(std::thread::spawn(move || {
             loop {
                 match server.recv() {
-                    Ok(req) => behandle(req, &motor, max_body),
+                    Ok(req) => behandle(req, &motor, max_body, &zaehler),
                     Err(_) => break,
                 }
             }
@@ -93,7 +97,7 @@ fn ist_pdf(buf: &[u8]) -> bool {
     anfang[ab..].starts_with(b"%PDF-")
 }
 
-fn behandle(req: Request, motor: &Motor, max_body: usize) {
+fn behandle(req: Request, motor: &Motor, max_body: usize, zaehler: &Zaehler) {
     let start = Instant::now();
     let methode = req.method().clone();
     let url = req.url().to_string();
@@ -104,8 +108,20 @@ fn behandle(req: Request, motor: &Motor, max_body: usize) {
             sende_text(req, 200, "ok\n");
             200
         }
-        (Method::Post, "/validate") => validate(req, motor, max_body),
-        (_, "/validate") | (_, "/health") => {
+        // Privater Nutzungsstand (nur Loopback erreichbar). Nur eine Zahl.
+        (Method::Get, "/count") => {
+            sende_json(req, 200, zaehler.json());
+            200
+        }
+        (Method::Post, "/validate") => {
+            let c = validate(req, motor, max_body);
+            // Nur abgeschlossene Validierungen zaehlen (Bericht 200 oder Fachurteil 422).
+            if c == 200 || c == 422 {
+                zaehler.plus();
+            }
+            c
+        }
+        (_, "/validate") | (_, "/health") | (_, "/count") => {
             sende_json(req, 405, fehler_json("methode", "Methode nicht erlaubt"));
             405
         }

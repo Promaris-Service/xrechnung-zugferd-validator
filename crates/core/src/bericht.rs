@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Welches Werkzeug den Bericht erzeugt hat.
+/// Which tool produced the report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Werkzeug {
@@ -10,7 +10,7 @@ pub enum Werkzeug {
     Mustang,
 }
 
-/// Syntax des Belegs, aus dem Wurzelelement abgeleitet.
+/// Syntax of the document, derived from the root element.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Syntax {
@@ -29,7 +29,7 @@ impl Syntax {
     }
 }
 
-/// Schweregrad eines Befunds nach Anwendung der Werkzeugregeln (customLevel usw.).
+/// Severity of a finding after the tool's own rules have been applied (customLevel etc.).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Stufe {
@@ -39,8 +39,8 @@ pub enum Stufe {
 }
 
 impl Stufe {
-    /// SVRL-`flag` bzw. KoSIT-`level` in eine Stufe uebersetzen.
-    /// `ohne_flag` sagt, was ein Befund ohne Angabe bedeutet (KoSIT: Fehler, Mustang: Fehler).
+    /// Translate an SVRL `flag` or a KoSIT `level` into a severity.
+    /// `ohne_flag` states what a finding without any value means (KoSIT: error, Mustang: error).
     pub fn aus_flag(flag: &str, ohne_flag: Stufe) -> Stufe {
         match flag.trim().to_ascii_lowercase().as_str() {
             "" => ohne_flag,
@@ -52,43 +52,43 @@ impl Stufe {
     }
 }
 
-/// Ein einzelner Schematron-Befund (ein `svrl:failed-assert` bzw. `svrl:successful-report`).
+/// A single Schematron finding (an `svrl:failed-assert` or `svrl:successful-report`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Befund {
-    /// Regel-ID (`BR-S-05`, `CII-SR-013`, `BR-DE-1` …), leer wenn das Artefakt keine liefert.
+    /// Rule ID (`BR-S-05`, `CII-SR-013`, `BR-DE-1` …), empty if the artifact supplies none.
     pub regel: String,
-    /// Stufe nach Werkzeugregeln.
+    /// Severity according to the tool's rules.
     pub stufe: Stufe,
-    /// Der unveraenderte `flag`-Wert aus dem SVRL (`fatal`, `warning`, leer …).
+    /// The unchanged `flag` value from the SVRL (`fatal`, `warning`, empty …).
     pub flag: String,
-    /// XPath-Ort im Beleg, wie das Artefakt ihn nennt.
+    /// XPath location in the document, as the artifact names it.
     pub ort: String,
-    /// Meldungstext im Wortlaut des Artefakts.
+    /// Message text, verbatim from the artifact.
     pub text: String,
-    /// Artefakt, aus dem der Befund stammt (Dateiname).
+    /// Artifact the finding originates from (file name).
     pub quelle: String,
 }
 
-/// Ergebnis einer Pruefung.
+/// Result of a validation run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bericht {
     pub werkzeug: Werkzeug,
-    /// KoSIT: Szenarioname; Mustang: Profilname.
+    /// KoSIT: scenario name; Mustang: profile name.
     pub szenario: String,
     pub syntax: Syntax,
-    /// CustomizationID (UBL) bzw. Guideline-ID (CII) des Belegs.
+    /// CustomizationID (UBL) or Guideline ID (CII) of the document.
     pub kennung: String,
-    /// XSD-Pruefung bestanden.
+    /// XSD validation passed.
     pub xsd_gueltig: bool,
-    /// XSD-Fehler im Wortlaut (Code, Meldung, Pfad).
+    /// XSD errors verbatim (code, message, path).
     pub xsd_fehler: Vec<String>,
-    /// Schematron-Befunde aller angewandten Artefakte.
+    /// Schematron findings from every applied artifact.
     pub befunde: Vec<Befund>,
-    /// Gesamturteil: XSD bestanden und kein Befund der Stufe `Fehler`.
+    /// Overall verdict: XSD passed and no finding of severity `Fehler`.
     pub angenommen: bool,
-    /// Reine Pruefdauer in Millisekunden (ohne Artefakt-Kompilierung).
+    /// Pure validation time in milliseconds (excluding artifact compilation).
     pub dauer_ms: u64,
-    /// Version der eingebetteten Artefakte.
+    /// Version of the embedded artifacts.
     pub artefakte: String,
 }
 

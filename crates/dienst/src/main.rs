@@ -7,6 +7,7 @@
 mod antwort;
 mod http;
 mod motor;
+mod zaehler;
 
 use std::net::ToSocketAddrs;
 
@@ -41,12 +42,17 @@ fn main() -> anyhow::Result<()> {
         .next()
         .ok_or_else(|| anyhow::anyhow!("Bind-Adresse ungueltig: {bind}"))?;
 
+    // Nutzungszaehler (opt-in persistent ueber ERECHNUNG_COUNTER_FILE). Nur eine Zahl.
+    let counter_datei = std::env::var("ERECHNUNG_COUNTER_FILE").ok().filter(|s| !s.is_empty());
+    let zaehler = zaehler::Zaehler::neu(counter_datei.clone());
+
     // Component EINMAL kompilieren (teuer). Danach pro Request ein frischer Store.
     let motor = motor::Motor::neu(&wasm, wasm_stack, thread_stack, timeout_s, max_memory)?;
 
     eprintln!(
-        "erechnung-validator-dienst: bind={addr} wasm={wasm} max_body={max_body}B timeout={timeout_s}s max_memory={max_memory}B"
+        "erechnung-validator-dienst: bind={addr} wasm={wasm} max_body={max_body}B timeout={timeout_s}s max_memory={max_memory}B counter={}",
+        counter_datei.as_deref().unwrap_or("nur-speicher")
     );
 
-    http::serve(addr, motor, max_body)
+    http::serve(addr, motor, max_body, zaehler)
 }

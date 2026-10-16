@@ -1,5 +1,8 @@
 # erechnung-validator
 
+**EN 16931 e-invoice validation as a WASI component — XRechnung, ZUGFeRD and Factur-X
+in pure Rust, running the original KoSIT and Mustang artifacts without a JVM.**
+
 > 🇩🇪 Eine deutsche Fassung dieser README liegt in [README.de.md](https://github.com/Promaris-Service/xrechnung-zugferd-validator/blob/main/README.de.md).
 
 KoSIT and Mustang validation for e-invoices according to EN 16931 (CII and UBL) in **pure Rust** — natively as a Cargo crate and CLI, and as a **WASI component** (`wasm32-wasip2`) with a typed WIT interface. No JVM, no C library, nothing to download: the original validation artifacts (Schematron XSLTs, XSDs, code lists) are embedded.

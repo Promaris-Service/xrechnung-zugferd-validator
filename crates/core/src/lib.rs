@@ -1,18 +1,19 @@
-//! KoSIT- und Mustang-Validierung fuer EN-16931-E-Rechnungen (CII und UBL) in reinem Rust.
+//! WASI-ready KoSIT and Mustang validation for EN 16931 e-invoices (CII and UBL) in pure Rust.
 //!
-//! Die Crate fuehrt die **originalen** Pruefartefakte aus (die kompilierten Schematron-XSLTs
-//! und XSDs der KoSIT-XRechnung-Konfiguration und des Mustang-Validators) mit der reinen
-//! Rust-Engine `oxixml`. Kein Regel-Nachbau, keine JVM, keine C-Abhaengigkeit; baut nativ
-//! und fuer `wasm32-wasip2`.
+//! The crate executes the **original** validation artifacts (the compiled Schematron XSLTs
+//! and XSDs of the KoSIT XRechnung configuration and of the Mustang validator) with the
+//! pure-Rust engine `oxixml`. The rules are not reimplemented. No JVM, no C dependency;
+//! builds natively and for `wasm32-wasip2`, where it is exposed as a WASI component with a
+//! typed WIT interface.
 //!
-//! Aufbau (je Belang eine Datei, Doku in der gleichnamigen `.md`):
-//!   artefakte/  eingebettete XSLT/XSD-Dateien und ihre Aufloesung aus dem Speicher
-//!   engine/     oxixml-Anbindung: Dokument, Stylesheet, Schema, Cache
-//!   svrl.rs     SVRL-Ausgabe der Schematron-XSLTs in Befunde uebersetzen
-//!   bericht.rs  gemeinsames Ergebnisformat (serde, JSON)
-//!   kosit/      Szenarienwahl, Stufen (customLevel), Pruefung wie der KoSIT-Validator
-//!   mustang/    Profilwahl und Pruefung wie Mustangs XMLValidator
-//!   validator.rs  Einstieg: `Validator` haelt die kompilierten Artefakte (ein Exemplar je Thread)
+//! Layout (one file per concern, its documentation in the `.md` file of the same name):
+//!   artefakte/    embedded XSLT/XSD files and their resolution from memory
+//!   engine/       oxixml binding: document, stylesheet, schema, cache
+//!   svrl.rs       translate the SVRL output of the Schematron XSLTs into findings
+//!   bericht.rs    shared result format (serde, JSON)
+//!   kosit/        scenario selection, levels (customLevel), validation as the KoSIT validator
+//!   mustang/      profile selection and validation as Mustang's XMLValidator
+//!   validator.rs  entry point: `Validator` holds the compiled artifacts (one per thread)
 
 mod artefakte;
 mod bericht;
@@ -29,5 +30,5 @@ pub use fehler::Fehler;
 pub use kosit::Szenarien;
 pub use validator::{Doppelergebnis, Validator};
 
-/// Version der eingebetteten Artefakte, fuer Berichte und Protokolle.
+/// Version of the embedded artifacts, for reports and logs.
 pub const ARTEFAKTE: &str = artefakte::VERSION;

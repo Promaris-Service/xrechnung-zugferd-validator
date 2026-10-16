@@ -7,13 +7,13 @@ use crate::kosit::{self, Stufen, Szenarien};
 use crate::mustang;
 use std::cell::OnceCell;
 
-/// Empfohlener Stack fuer die tiefen EN-16931-Stylesheets (der Thread muss ihn haben).
+/// Recommended stack size for the deeply nested EN 16931 stylesheets (the thread must provide it).
 pub const STACK_BYTES: usize = 64 * 1024 * 1024;
 
-/// Ergebnis von [`Validator::beide`]: links KoSIT, rechts Mustang.
+/// Result of [`Validator::beide`]: KoSIT on the left, Mustang on the right.
 pub type Doppelergebnis = (Result<Bericht, Fehler>, Result<Bericht, Fehler>);
 
-/// Ein Validator je Thread. Kompiliert Artefakte beim ersten Gebrauch und behaelt sie.
+/// One validator per thread. Compiles the artifacts on first use and keeps them.
 pub struct Validator {
     cache: Cache,
     stufen: OnceCell<Stufen>,
@@ -27,7 +27,7 @@ impl Default for Validator {
 }
 
 impl Validator {
-    /// Siehe [`STACK_BYTES`].
+    /// Recommended stack size for the deeply nested EN 16931 stylesheets (the thread must provide it).
     pub const STACK_BYTES: usize = STACK_BYTES;
 
     pub fn new() -> Self {
@@ -38,13 +38,13 @@ impl Validator {
         }
     }
 
-    /// Stack, den die Engine dem laufenden Thread zutrauen darf (Standard 64 MiB).
+    /// Stack size the engine may assume on the running thread (default 64 MiB).
     pub fn mit_stack(mut self, bytes: usize) -> Self {
         self.stack_bytes = bytes;
         self
     }
 
-    /// Alle Artefakte beider Werkzeuge vorab kompilieren (Dienststart).
+    /// Pre-compile every artifact of both tools (service start-up).
     pub fn vorwaermen(&self) -> Result<(), Fehler> {
         self.cache.vorwaermen(kosit_xslt(), kosit_xsd())?;
         self.cache
@@ -57,7 +57,7 @@ impl Validator {
         self.stufen.get_or_init(Stufen::laden)
     }
 
-    /// Pruefung wie der KoSIT-Validator.
+    /// Validation as performed by the KoSIT validator.
     pub fn kosit(&self, xml: &str, szenarien: Szenarien) -> Result<Bericht, Fehler> {
         let dok = Dokument::parse(xml)?;
         kosit::pruefe(
@@ -69,8 +69,8 @@ impl Validator {
         )
     }
 
-    /// Pruefung einer ZUGFeRD/Factur-X-PDF: das eingebettete Rechnungs-XML entpacken und
-    /// wie `kosit` pruefen. Gibt zusaetzlich den Dateinamen des eingebetteten XML zurueck.
+    /// Validate a ZUGFeRD/Factur-X PDF: extract the embedded invoice XML and check it
+    /// as `kosit` does. Additionally returns the file name of the embedded XML.
     pub fn kosit_pdf(
         &self,
         pdf: &[u8],
@@ -81,9 +81,9 @@ impl Validator {
         Ok((name, bericht))
     }
 
-    /// Beide Werkzeuge auf einer ZUGFeRD/Factur-X-PDF: das eingebettete Rechnungs-XML
-    /// EINMAL entpacken und dann wie `beide` KoSIT und Mustang darauf fahren. Gibt
-    /// zusaetzlich den Dateinamen des eingebetteten XML zurueck.
+    /// Both tools on a ZUGFeRD/Factur-X PDF: extract the embedded invoice XML ONCE and
+    /// then run KoSIT and Mustang on it as `beide` does. Additionally returns the file
+    /// name of the embedded XML.
     pub fn beide_pdf(
         &self,
         pdf: &[u8],
@@ -94,13 +94,13 @@ impl Validator {
         Ok((name, doppel))
     }
 
-    /// Pruefung wie Mustang.
+    /// Validation as performed by Mustang.
     pub fn mustang(&self, xml: &str) -> Result<Bericht, Fehler> {
         let dok = Dokument::parse(xml)?;
         mustang::pruefe(&self.cache, self.stack_bytes, &dok)
     }
 
-    /// Beide Werkzeuge auf einem einmal geparsten Beleg.
+    /// Both tools on a document that is parsed only once.
     pub fn beide(&self, xml: &str, szenarien: Szenarien) -> Result<Doppelergebnis, Fehler> {
         let dok = Dokument::parse(xml)?;
         Ok((

@@ -1,13 +1,14 @@
 [package]
 name = "erechnung-validator"
-description = "KoSIT- und Mustang-Validierung für EN-16931-E-Rechnungen (CII/UBL) in reinem Rust: originale XSLT/XSD-Artefakte, oxixml-Engine, WASI-tauglich"
+description = "WASI component and pure-Rust library for EN 16931 e-invoice validation (XRechnung, ZUGFeRD, Factur-X): executes the original KoSIT and Mustang artifacts, byte-identical, without a JVM"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 rust-version.workspace = true
 readme = "README.md"
-keywords = ["xrechnung", "zugferd", "factur-x", "en16931", "e-rechnung"]
+keywords = ["wasi", "xrechnung", "zugferd", "kosit", "mustang"]
 categories = ["finance", "parser-implementations", "wasm"]
 
 [dependencies]

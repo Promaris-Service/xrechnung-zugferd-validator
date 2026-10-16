@@ -2,20 +2,20 @@
 
 use std::fmt;
 
-/// Alles, was eine Pruefung verhindert (nicht: Befunde am Beleg, die stehen im Bericht).
+/// Anything that prevents a validation run (not: findings on the document, which go into the report).
 ///
-/// `#[non_exhaustive]`: neue Varianten sind kein SemVer-Bruch; abhaengige Crates
-/// muessen beim Matchen einen Wildcard-Arm (`_`) vorsehen.
+/// `#[non_exhaustive]`: new variants are not a SemVer break; dependent crates
+/// must provide a wildcard arm (`_`) when matching.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Fehler {
-    /// Der Beleg ist kein wohlgeformtes XML oder kein bekannter Rechnungstyp.
+    /// The document is not well-formed XML, or not a known invoice type.
     Dokument(String),
-    /// Kein KoSIT-Szenario passt zur CustomizationID / Guideline-ID (wie KoSIT: Ablehnung).
+    /// No KoSIT scenario matches the CustomizationID / Guideline ID (rejected, as KoSIT does).
     KeinSzenario(String),
-    /// Mustang kennt das Profil nicht (z. B. ZUGFeRD 1.0, Order-X).
+    /// Mustang does not know this profile (e.g. ZUGFeRD 1.0, Order-X).
     UnbekanntesProfil(String),
-    /// Ein Artefakt liess sich nicht kompilieren oder ausfuehren (Engine-Fehler).
+    /// An artifact could not be compiled or executed (engine error).
     Engine(String),
 }
 

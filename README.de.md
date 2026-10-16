@@ -1,5 +1,8 @@
 # erechnung-validator
 
+**EN-16931-Rechnungsprüfung als WASI-Component — XRechnung, ZUGFeRD und Factur-X
+in reinem Rust, mit den originalen KoSIT- und Mustang-Artefakten, ohne JVM.**
+
 > 🇬🇧 An English version of this README is in [README.md](https://github.com/Promaris-Service/xrechnung-zugferd-validator/blob/main/README.md).
 
 KoSIT- und Mustang-Validierung für E-Rechnungen nach EN 16931 (CII und UBL) in **reinem
