@@ -15,7 +15,10 @@ regelmaessig neue Fassungen — dann muessen die Artefakte erneuert und neu komp
 ## Update durchfuehren
 1. Neue Artefakte vom jeweiligen Upstream-Release holen (Verzeichnis siehe Pin-Datei).
 2. Vorverarbeiten (Schematron-Includes zusammenfuehren, Factur-X-Codelisten einsetzen).
-3. In `crates/core/artefakte/` einbetten (die `&'static str`-Tabellen in `artefakte/tabelle.rs`).
+3. In `crates/core/artefakte/` ablegen. Die `&'static str`-Tabellen erzeugt `crates/core/build.rs`
+   beim nächsten Bau selbst; eine Datei mehr oder weniger wird automatisch übernommen.
+   Liegt eine `.sch` noch roh vor (`<include>`, `abstract="true"`), bricht der Bau ab und
+   nennt den fehlenden Vorverarbeitungsschritt.
 4. `cargo test` + **255/255 gegen die neue KoSIT-/Mustang-Referenz** (Gold-Standard;
    neue Regeln koennen Urteile aendern — die Referenz wandert mit).
 5. `VERSION` in `artefakte/mod.rs`, die Tabelle in `NOTICE.md` und `docs/artefakte-quellen.toml`

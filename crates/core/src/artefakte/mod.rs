@@ -1,6 +1,11 @@
 //! Eingebettete Pruefartefakte und ihre Aufloesung aus dem Speicher. Siehe mod.md.
 
-mod tabelle;
+mod tabelle {
+    //! Von `build.rs` aus `artefakte/` erzeugt: die eingebetteten Dateien und die zur Bauzeit
+    //! berechneten Paare gleicher Regelsaetze. Siehe ../../build.md.
+    use super::Datei;
+    include!(concat!(env!("OUT_DIR"), "/tabelle.rs"));
+}
 
 /// Ein eingebettetes Artefakt: Pfad unterhalb von `artefakte/` und sein Text.
 pub struct Datei {
