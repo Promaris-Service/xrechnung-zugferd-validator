@@ -12,12 +12,25 @@ originalen Prüfartefakte (Schematron-XSLTs, XSDs, Codelisten) sind eingebettet.
 
 Die Regeln sind **nicht nachgebaut**. Ausgeführt werden die originalen Artefakte mit der
 Rust-Engine [oxixml](https://github.com/cool-japan/oxixml): die EN-16931-Kernregeln als
-Schematron-Quelle (CEN 1.3.15, dieselbe Fassung, die KoSITs XSLT zugrunde liegt), alles
+Schematron-Quelle (CEN 1.3.16, dieselbe Fassung, die KoSITs XSLT zugrunde liegt), alles
 andere als die kompilierten XSLTs, die auch Saxon im KoSIT-Validator und in Mustang
-ausführt. Auf einem Bestand von 255 echten Eingangsrechnungen (250 CII, 5 UBL, alle
+ausführt.
+
+Belegt ist das an zwei Beständen. Auf 255 echten Eingangsrechnungen (250 CII, 5 UBL, alle
 Factur-X-Profile plus XRechnung) sind die Befunde — Regel-IDs, Schweregrade, XSD-Urteil —
 zu **255/255 identisch** mit dem KoSIT-Validator 1.6.1, und die Mustang-Urteile zu
-**255/255 identisch** mit Mustang 2.24.0.
+**255/255 identisch** mit Mustang 2.24.0. Auf einem zweiten, größeren Bestand von **8.357
+echten Ausgangsrechnungen** (XRechnung 3.0, CII) wurde der KoSIT-Pfad Beleg für Beleg gegen
+den KoSIT-Validator 1.6.3 mit Konfiguration 2026-08-31 geprüft: 1.443 Belege tragen Befunde,
+1.505 Befunde insgesamt, und Regel-IDs wie Schweregrade stimmen auf **8.357/8.357** Belegen
+überein — kein einziger Unterschied.
+
+**Bei den Mustang-Regeln ist es deutlich schneller. Bei den KoSIT-Regeln hängt die Antwort
+davon ab, wie man Java betreibt.** Über dieselben 8.357 Belege führt es die Mustang-Regeln
+rund **10× schneller** aus als Mustang-Java 2.26.0 (8,3 s gegen 81,6 s). Gegen den
+KoSIT-Validator gewinnt es den einmaligen Stapellauf (6,3 s gegen 8,6 s inklusive Start),
+verliert aber gegen einen warmgelaufenen KoSIT-Daemon (3,6 s). Zahlen, Methode und der
+Grund für die Aufspaltung unter [Leistung](#leistung).
 
 ## Was drin ist
 
@@ -30,12 +43,12 @@ zu **255/255 identisch** mit dem KoSIT-Validator 1.6.1, und die Mustang-Urteile 
 
 Eingebettete Artefakte (`crates/core/artefakte/`, Herkunft und Lizenzen in `NOTICE.md`):
 
-- **KoSIT** `validator-configuration-xrechnung` Stand 2026-01-31: XRechnung 3.0.2
+- **KoSIT** `validator-configuration-xrechnung` Stand 2026-08-31: XRechnung 3.0.2
   (CII, UBL Invoice, UBL CreditNote, Extension, CVD), EN 16931 CII/UBL, Szenarien
   mit `customLevel`. Zusätzlich die Promaris-Szenarien „EN16931 für jeden Beleg".
-- **CEN** EN 16931 Schematron-Quellen, Release validation-1.3.15 (vorverarbeitet:
+- **CEN** EN 16931 Schematron-Quellen, Release validation-1.3.16 (vorverarbeitet:
   Includes eingebettet, abstrakte Muster instanziiert).
-- **Mustang 2.24.0**: Factur-X 1.0 (ZF_250) MINIMUM, BASIC WL, BASIC, EN16931,
+- **Mustang 2.26.0**: Factur-X 1.09.2 (ZF_250) MINIMUM, BASIC WL, BASIC, EN16931,
   EXTENDED mit Codelisten, XRechnung 1.2 bis 3.0 (CII/UBL), EN 16931 CII/UBL, XSDs je Profil.
 
 ## Nativ (Rust)
@@ -124,51 +137,90 @@ Beispiel-Host in Rust: `examples/host-wasmtime` (typisierte Bindings per
 
 ## Leistung
 
-255 echte Belege (9 MB), 64 Kerne, alles inklusive Start und Kompilierung, beste
-gefundene Konfiguration je Werkzeug. **Diese Tabelle wurde vor dem geteilten
-Artefakt-Cache gemessen** (Commit `e331713`); die Wandzeiten gelten weiter, die
-Speicherwerte sind inzwischen deutlich niedriger — siehe unten:
+Gemessen an **8.357 echten Ausgangsrechnungen** (XRechnung 3.0, CII; 87 MB) auf einem AMD
+Ryzen Threadripper PRO 5975WX (32 Kerne, 64 Threads, 125 GB RAM), Release-Build mit Fat-LTO
+und `-C target-cpu=native`. Beide Seiten fahren **dieselben Artefakte**: KoSIT-Konfiguration
+2026-08-31 mit KoSIT-Validator 1.6.3 und Mustang 2.26.0. Jeder Wert ist der beste aus drei
+Läufen; die Streuung blieb unter 4 %.
 
-| Werkzeug | Konfiguration | Wandzeit | je Beleg | Speicher |
+### Durchsatz
+
+| Regelsatz | Wandzeit | je Beleg | Belege/s | Spitzenspeicher |
 |---|---|---|---|---|
-| KoSIT Java (Saxon) | 2 JVMs parallel | 4,5 s | 18 ms | – |
-| **KoSIT, diese Crate** | 64 Worker | **2,7 s** | 11 ms | 2,7 GB |
-| KoSIT, diese Crate | 16 Worker | 4,2 s | 16 ms | 1,6 GB |
-| Mustang Java | 1 JVM je Datei, 32 parallel | 82,5 s | 324 ms | – |
-| **Mustang, diese Crate** | 64 Worker | **3,1 s** | 12 ms | 12 GB |
-| Mustang, diese Crate | 16 Worker | 3,9 s | 15 ms | 6,9 GB |
-| Beide Werkzeuge, diese Crate | 64 Worker | 5,1 s | 20 ms | 14 GB |
+| KoSIT | **6,30 s** | 0,75 ms | 1.327 | 0,98 GB |
+| Mustang | **8,32 s** | 1,00 ms | 1.004 | 1,28 GB |
+| beide | **14,03 s** | 1,68 ms | 596 | 1,59 GB |
 
-Rechenzeit je Beleg auf einem Kern: KoSIT-Weg Median 21 ms, p90 93 ms, Maximum 1,3 s;
-Mustang-Weg Median 25 ms, p90 112 ms, Maximum 1,1 s (430-KB-Beleg mit vielen
-Positionen). Die Wandzeit eines Batches bestimmt der langsamste Beleg, nicht die Kernzahl.
+### Gegen die Java-Validatoren
+
+| | diese Crate | Java | |
+|---|---|---|---|
+| **Mustang** — 64 JVMs, je ein Verzeichnis | **8,32 s** | 81,56 s | **9,8× schneller** |
+| KoSIT — einmaliger Stapellauf, Start inbegriffen | **6,30 s** | 8,55 s | 1,36× schneller |
+| KoSIT — warmgelaufener Daemon (`-T 64`) | 6,30 s | **3,63 s** | 1,7× **langsamer** |
+| KoSIT — 64 JVMs im Stapelbetrieb | **6,30 s** | 98,44 s | 15,6× schneller |
+
+Der KoSIT-Vergleich spaltet sich, weil die Startkosten nicht symmetrisch sind. Diese Crate
+braucht 0,10 s (KoSIT) bzw. 0,34 s (Mustang) für Prozessstart und Artefaktaufbau — in den
+Stapelwerten ist das enthalten. Der KoSIT-Daemon braucht **4,06 s** einmalig und ist danach
+schnell: 3,63 s reine Prüfung, und das bei zusätzlich 28 KB HTML-Visualisierung je Beleg, die
+diese Crate gar nicht erzeugt. Für den einmaligen Lauf liegt die Crate vorn, für den
+Dauerbetrieb eine warme JVM mit Saxon.
+
+Frühere Fassungen dieser README nannten weit größere Faktoren. Die stammten aus einem
+255-Beleg-Bestand mit KoSIT-Java in einer deutlich schwächeren Aufstellung (zwei parallele
+JVMs); der Daemon ist rund 40× besser als das. Mustang-Java ist, je Verzeichnis statt je Datei
+aufgerufen, etwa doppelt so schnell wie die früher genannten 324 ms je Beleg. Die Werte oben
+ersetzen die alten.
+
+### Skalierung über die Threadzahl
+
+3.998 Belege, beide Regelsätze:
+
+| Threads | Wandzeit | Faktor | Effizienz | RSS |
+|---|---|---|---|---|
+| 1 | 196,88 s | 1,00 | 100 % | 0,52 GB |
+| 2 | 99,77 s | 1,97 | 99 % | 0,52 GB |
+| 4 | 46,97 s | 4,19 | 105 % | 0,57 GB |
+| 8 | 24,07 s | 8,18 | 102 % | 0,66 GB |
+| 16 | 13,92 s | 14,14 | 88 % | 0,80 GB |
+| 32 | 9,52 s | 20,68 | 65 % | 1,01 GB |
+| 64 | 7,11 s | 27,69 | 43 % | 1,53 GB |
+
+Bis 8 Threads nahezu ideal. Die Maschine hat 32 physische Kerne, 64 Threads sind also SMT;
+die 43 % Effizienz dort sind die normale Ausbeute, kein Mangel — **32 Threads sind der
+Arbeitspunkt**. Werte über 100 % sind Cache- und Turbo-Verhalten, also Messrauschen und kein
+Ergebnis.
+
+Der Speicher wächst von 1 auf 64 Threads nur von 0,52 auf 1,53 GB: Der geteilte
+Artefakt-Cache tut, was er soll. Mit Cache je Thread waren es 12 bis 49 GB für dieselbe Arbeit.
+
+### Rechenzeit je Beleg auf einem Kern
+
+| Regelsatz | Median | p90 | p99 | Maximum |
+|---|---|---|---|---|
+| KoSIT | 37 ms | 50 ms | 127 ms | 639 ms |
+| Mustang | 49 ms | 65 ms | 286 ms | 914 ms |
+| *Mustang-Java 2.26.0* | *174 ms* | *1.132 ms* | *2.513 ms* | *30.187 ms* |
+
+Die Verteilung ist eng — p90 liegt beim 1,35-Fachen des Medians —, sodass wenige langsame
+Belege die Gesamtlaufzeit nicht bestimmen, sobald genug davon da sind.
+
+Die Zeit skaliert linear mit der Dokumentgröße (r = 0,915, rund 4,6 ms je KB), sie ist also
+keine Fixkost je Beleg. Innerhalb der Schematron-Stufe gehen etwa **48 %** in die Auswertung
+der 806 Asserts, **35 %** in das Treffen der 113 Regelkontexte — jeder davon ein vollständiger
+Baumdurchlauf ab Wurzel — und 17 % in den Aufbau. Die XSD-Prüfung macht 2 % des Ganzen aus.
 
 **Woher die Beschleunigung kommt:** Der XSLT-Weg (die kompilierten Schematron-XSLTs von
 KoSIT und Mustang in oxixml) brauchte 40,7 s (KoSIT) bzw. 77 s (Factur-X) Rechenzeit für
-den Bestand und 0,5 bis 2,5 s Kompilierung je Artefakt; Saxon ist auf diesem Weg je
+den 255-Beleg-Bestand und 0,5 bis 2,5 s Kompilierung je Artefakt; Saxon ist auf diesem Weg je
 Dokument rund zwölfmal schneller. Die Schematron-Quellen direkt auszuführen
-(`oxixml-schematron`, jede Regel ein XPath) senkt die Rechenzeit auf 18 s (KoSIT, Faktor 2)
-bzw. 11 s (Factur-X, Faktor 7) und die Kompilierung auf Millisekunden — bei identischen
-Befunden. Dafür werden die Quellen vorverarbeitet (Includes, abstrakte Muster,
-Codelisten statt `document()`), siehe `crates/core/scripts/` und
-`crates/core/src/engine/schematron.md`. Nur das XRechnung-Schematron (eigene
-`xsl:function`) und Mustangs CEN-Lauf für XRechnung laufen noch als XSLT.
-
-### Seit dem geteilten Artefakt-Cache
-
-Gemessen auf einem anderen Korpus (400 Dateien, 32 Threads, Release-Build mit fat LTO),
-deshalb nicht Zeile für Zeile mit der Tabelle oben vergleichbar. Alle Stufen liefern
-**byte-identische** Befunde, nur `dauer_ms` ändert sich:
-
-| Stufe | KoSIT @32T | Mustang @32T |
-|---|---|---|
-| Cache je Thread (vorher) | 1,54 s · 11,8 GB | 5,13 s · 49,1 GB |
-| XSLT/Schematron geteilt (`Arc`) | 0,77 s · 2,1 GB | 1,37 s · 2,4 GB |
-| zusätzlich PGO | 0,72 s · 2,2 GB | 1,21 s · 2,4 GB |
-| zusätzlich XSD geteilt (braucht oxixml-Patch) | 0,72 s · **1,02 GB** | 1,27 s · **1,52 GB** |
-
-Der Speicher wächst damit **nicht mehr mit der Thread-Zahl**. Herleitung, Kernel-Analyse
-und der offene oxixml-Patch stehen in `docs/perf/PERFORMANCE-FINDINGS.md`.
+(`oxixml-schematron`, jede Regel ein XPath) senkt die Rechenzeit auf 18 s (KoSIT) bzw. 11 s
+(Factur-X) und die Kompilierung auf Millisekunden — bei identischen Befunden. Dafür werden
+die Quellen vorverarbeitet (Includes, abstrakte Muster, Codelisten statt `document()`), siehe
+`crates/core/scripts/` und `crates/core/src/engine/schematron.md`. Nur das
+XRechnung-Schematron (eigene `xsl:function`) und Mustangs CEN-Lauf für XRechnung laufen noch
+als XSLT.
 
 ## Was bewusst nicht enthalten ist
 
@@ -194,6 +246,12 @@ Die eingebetteten Artefakte sind in `docs/artefakte-quellen.toml` festgenagelt.
 `scripts/pruefe-artefakt-updates.py` vergleicht diese Pins mit den Upstream-Releases von
 KoSIT, EN 16931 und Mustang und endet mit 10, wenn es eine neuere Fassung gibt; wie man sie
 übernimmt, steht in `docs/artefakte-aktualisieren.md`.
+
+`crates/core/build.rs` erzeugt die Tabelle der eingebetteten Artefakte bei jeder Änderung
+unter `artefakte/` neu; eine Datei mehr oder weniger braucht also keinen Handgriff. Es
+verweigert außerdem den Bau, wenn eine Schematron-Quelle noch roh von upstream ist
+(`<include>` oder `abstract="true"` darin) — ein solches Artefakt würde zur Laufzeit still
+zu wenig prüfen.
 
 ## Aufbau
 

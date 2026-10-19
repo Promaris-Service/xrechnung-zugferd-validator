@@ -7,9 +7,11 @@ in pure Rust, running the original KoSIT and Mustang artifacts without a JVM.**
 
 KoSIT and Mustang validation for e-invoices according to EN 16931 (CII and UBL) in **pure Rust** — natively as a Cargo crate and CLI, and as a **WASI component** (`wasm32-wasip2`) with a typed WIT interface. No JVM, no C library, nothing to download: the original validation artifacts (Schematron XSLTs, XSDs, code lists) are embedded.
 
-The rules are **not reimplemented**. The original artifacts are executed with the Rust engine [oxixml](https://github.com/cool-japan/oxixml): the EN 16931 core rules as Schematron source (CEN 1.3.15, the same version underlying KoSIT's XSLT), everything else as the compiled XSLTs that Saxon also executes in the KoSIT validator and in Mustang. On a corpus of 255 real incoming invoices (250 CII, 5 UBL, all Factur-X profiles plus XRechnung), the findings — rule IDs, severities, XSD verdict — are **identical in 255/255** cases with the KoSIT validator 1.6.1, and the Mustang verdicts are **identical in 255/255** cases with Mustang 2.24.0.
+The rules are **not reimplemented**. The original artifacts are executed with the Rust engine [oxixml](https://github.com/cool-japan/oxixml): the EN 16931 core rules as Schematron source (CEN 1.3.16, the same version underlying KoSIT's XSLT), everything else as the compiled XSLTs that Saxon also executes in the KoSIT validator and in Mustang.
 
-**And it is dramatically faster.** On that same corpus, measured end to end from a cold start (64 cores), this crate runs the Mustang rules about **27× faster** than Mustang-Java (3.1 s vs. 82.5 s) and the KoSIT rules about **1.7× faster** than KoSIT-Java (2.7 s vs. 4.5 s) — per document roughly 12 ms instead of 324 ms for Mustang. Full numbers under [Performance](#performance).
+Two corpora back this up. On 255 real incoming invoices (250 CII, 5 UBL, all Factur-X profiles plus XRechnung), the findings — rule IDs, severities, XSD verdict — are **identical in 255/255** cases with the KoSIT validator 1.6.1, and the Mustang verdicts are **identical in 255/255** cases with Mustang 2.24.0. On a second, larger corpus of **8,357 real outgoing invoices** (XRechnung 3.0, CII), the KoSIT path was compared against KoSIT validator 1.6.3 with configuration 2026-08-31, document by document: 1,443 documents carry findings, 1,505 findings in total, and both rule IDs and severities match in **8,357/8,357** documents — not one difference.
+
+**On the Mustang rules it is far faster. On the KoSIT rules the answer depends on how you run Java.** Over those 8,357 documents it runs the Mustang rules about **10× faster** than Mustang-Java 2.26.0 (8.3 s vs. 81.6 s). Against the KoSIT validator it wins a single batch run (6.3 s vs. 8.6 s, start-up included) but loses to a warmed-up KoSIT daemon (3.6 s). Figures, method and the reason for the split under [Performance](#performance).
 
 ## What's inside
 
@@ -22,9 +24,9 @@ The rules are **not reimplemented**. The original artifacts are executed with th
 
 Embedded artifacts (`crates/core/artefakte/`, origin and licenses in `NOTICE.md`):
 
-- **KoSIT** `validator-configuration-xrechnung` as of 2026-01-31: XRechnung 3.0.2 (CII, UBL Invoice, UBL CreditNote, Extension, CVD), EN 16931 CII/UBL, scenarios with `customLevel`. Additionally the scenarios "EN16931 for every document".
-- **CEN** EN 16931 Schematron sources, release validation-1.3.15 (preprocessed: includes embedded, abstract patterns instantiated).
-- **Mustang 2.24.0**: Factur-X 1.0 (ZF_250) MINIMUM, BASIC WL, BASIC, EN16931, EXTENDED with code lists, XRechnung 1.2 to 3.0 (CII/UBL), EN 16931 CII/UBL, XSDs per profile.
+- **KoSIT** `validator-configuration-xrechnung` as of 2026-08-31: XRechnung 3.0.2 (CII, UBL Invoice, UBL CreditNote, Extension, CVD), EN 16931 CII/UBL, scenarios with `customLevel`. Additionally the scenarios "EN16931 for every document".
+- **CEN** EN 16931 Schematron sources, release validation-1.3.16 (preprocessed: includes embedded, abstract patterns instantiated).
+- **Mustang 2.26.0**: Factur-X 1.09.2 (ZF_250) MINIMUM, BASIC WL, BASIC, EN16931, EXTENDED with code lists, XRechnung 1.2 to 3.0 (CII/UBL), EN 16931 CII/UBL, XSDs per profile.
 
 ## Native (Rust)
 
@@ -98,37 +100,90 @@ Example host in Rust: `examples/host-wasmtime` (typed bindings via `wasmtime::co
 
 ## Performance
 
-255 real documents (9 MB), 64 cores, everything including startup and compilation, best found configuration per tool. **This table was measured before the shared artifact cache** (commit `e331713`); the wall times still hold, the memory figures are considerably lower by now — see below:
+Measured on **8,357 real outgoing invoices** (XRechnung 3.0, CII; 87 MB) on an AMD Ryzen
+Threadripper PRO 5975WX (32 cores, 64 threads, 125 GB RAM), release build with fat LTO and
+`-C target-cpu=native`. Both sides run the **same artifacts**: KoSIT configuration 2026-08-31
+with KoSIT validator 1.6.3, and Mustang 2.26.0. Each figure is the best of three runs; the
+spread stayed under 4 %.
 
-| Tool | Configuration | Wall time | per document | Memory |
+### Throughput
+
+| Rule set | Wall time | per document | Documents/s | Peak memory |
 |---|---|---|---|---|
-| KoSIT Java (Saxon) | 2 JVMs parallel | 4.5 s | 18 ms | – |
-| **KoSIT, this crate** | 64 workers | **2.7 s** | 11 ms | 2.7 GB |
-| KoSIT, this crate | 16 workers | 4.2 s | 16 ms | 1.6 GB |
-| Mustang Java | 1 JVM per file, 32 parallel | 82.5 s | 324 ms | – |
-| **Mustang, this crate** | 64 workers | **3.1 s** | 12 ms | 12 GB |
-| Mustang, this crate | 16 workers | 3.9 s | 15 ms | 6.9 GB |
-| Both tools, this crate | 64 workers | 5.1 s | 20 ms | 14 GB |
+| KoSIT | **6.30 s** | 0.75 ms | 1,327 | 0.98 GB |
+| Mustang | **8.32 s** | 1.00 ms | 1,004 | 1.28 GB |
+| both | **14.03 s** | 1.68 ms | 596 | 1.59 GB |
 
-Computation time per document on one core: KoSIT path median 21 ms, p90 93 ms, maximum 1.3 s; Mustang path median 25 ms, p90 112 ms, maximum 1.1 s (430 KB document with many positions). The wall time of a batch is determined by the slowest document, not the number of cores.
+### Against the Java validators
 
-**Where the speedup comes from:** The XSLT path (the compiled Schematron XSLTs of KoSIT and Mustang in oxixml) required 40.7 s (KoSIT) or 77 s (Factur-X) of computation time for the corpus and 0.5 to 2.5 s of compilation per artifact; Saxon is about twelve times faster on this path per document. Executing the Schematron sources directly (`oxixml-schematron`, each rule an XPath) reduces computation time to 18 s (KoSIT, factor 2) or 11 s (Factur-X, factor 7) and compilation to milliseconds — with identical findings. For this, the sources are preprocessed (includes, abstract patterns, code lists instead of `document()`), see `crates/core/scripts/` and `crates/core/src/engine/schematron.md`. Only the XRechnung Schematron (own `xsl:function`) and Mustang's CEN run for XRechnung still run as XSLT.
+| | this crate | Java | |
+|---|---|---|---|
+| **Mustang** — 64 JVMs, one per directory | **8.32 s** | 81.56 s | **9.8× faster** |
+| KoSIT — single batch run, start-up included | **6.30 s** | 8.55 s | 1.36× faster |
+| KoSIT — warmed-up daemon (`-T 64`) | 6.30 s | **3.63 s** | 1.7× **slower** |
+| KoSIT — 64 JVMs in batch mode | **6.30 s** | 98.44 s | 15.6× faster |
 
-### Since the shared artifact cache
+The KoSIT comparison splits because start-up is not symmetric. This crate needs 0.10 s
+(KoSIT) or 0.34 s (Mustang) for process start and artifact set-up, and the batch figures
+include it. The KoSIT daemon needs **4.06 s** once and is fast afterwards: 3.63 s of pure
+validation while *also* rendering a 28 KB HTML visualisation per document, which this crate
+does not do. For a one-shot run this crate is ahead; for a long-running service a warm JVM
+with Saxon is ahead.
 
-Measured on a different corpus (400 files, 32 threads, release build with fat LTO), so not
-comparable row by row with the table above. Every stage produces **byte-identical**
-findings; only `dauer_ms` changes:
+Earlier releases of this README quoted much larger factors. Those came from a 255-document
+corpus with KoSIT-Java in a far weaker configuration (two parallel JVMs); the daemon is about
+40× better than that. Mustang-Java, run once per directory instead of once per file, is about
+twice as fast as the 324 ms per document quoted before. The figures above replace them.
 
-| Stage | KoSIT @32T | Mustang @32T |
-|---|---|---|
-| cache per thread (before) | 1.54 s · 11.8 GB | 5.13 s · 49.1 GB |
-| XSLT/Schematron shared (`Arc`) | 0.77 s · 2.1 GB | 1.37 s · 2.4 GB |
-| plus PGO | 0.72 s · 2.2 GB | 1.21 s · 2.4 GB |
-| plus XSD shared (needs oxixml patch) | 0.72 s · **1.02 GB** | 1.27 s · **1.52 GB** |
+### Scaling across threads
 
-Memory therefore **no longer grows with the thread count**. The derivation, the kernel
-analysis and the open oxixml patch are in `docs/perf/PERFORMANCE-FINDINGS.md`.
+3,998 documents, both rule sets:
+
+| Threads | Wall time | Speed-up | Efficiency | RSS |
+|---|---|---|---|---|
+| 1 | 196.88 s | 1.00 | 100 % | 0.52 GB |
+| 2 | 99.77 s | 1.97 | 99 % | 0.52 GB |
+| 4 | 46.97 s | 4.19 | 105 % | 0.57 GB |
+| 8 | 24.07 s | 8.18 | 102 % | 0.66 GB |
+| 16 | 13.92 s | 14.14 | 88 % | 0.80 GB |
+| 32 | 9.52 s | 20.68 | 65 % | 1.01 GB |
+| 64 | 7.11 s | 27.69 | 43 % | 1.53 GB |
+
+Near-ideal up to 8 threads. The machine has 32 physical cores, so 64 threads are SMT and the
+43 % efficiency there is the normal yield, not a defect — **32 threads is the working point**.
+Values above 100 % are cache and turbo behaviour, that is measurement noise rather than a
+result.
+
+Memory grows from 0.52 to 1.53 GB between 1 and 64 threads: the shared artifact cache does
+its job. Per-thread caches needed 12 to 49 GB for the same work.
+
+### Computation time per document, on one core
+
+| Rule set | Median | p90 | p99 | Maximum |
+|---|---|---|---|---|
+| KoSIT | 37 ms | 50 ms | 127 ms | 639 ms |
+| Mustang | 49 ms | 65 ms | 286 ms | 914 ms |
+| *Mustang-Java 2.26.0* | *174 ms* | *1,132 ms* | *2,513 ms* | *30,187 ms* |
+
+The distribution is tight — p90 is 1.35× the median — so a few slow documents do not dominate
+a batch once there are enough of them.
+
+Time scales linearly with document size (r = 0.915, about 4.6 ms per KB) rather than being a
+fixed per-document cost. Within the Schematron stage roughly **48 %** goes to evaluating the
+806 asserts, **35 %** to matching the 113 rule contexts — each of which is a full tree
+traversal from the document root — and 17 % to set-up. The XSD check is 2 % of the total.
+
+### Where the speed-up comes from
+
+The XSLT path (the compiled Schematron XSLTs of KoSIT and Mustang in oxixml) required 40.7 s
+(KoSIT) or 77 s (Factur-X) of computation time for the 255-document corpus and 0.5 to 2.5 s of
+compilation per artifact; Saxon is about twelve times faster on this path per document.
+Executing the Schematron sources directly (`oxixml-schematron`, each rule an XPath) reduces
+computation time to 18 s (KoSIT) or 11 s (Factur-X) and compilation to milliseconds — with
+identical findings. For this, the sources are preprocessed (includes, abstract patterns, code
+lists instead of `document()`), see `crates/core/scripts/` and
+`crates/core/src/engine/schematron.md`. Only the XRechnung Schematron (own `xsl:function`) and
+Mustang's CEN run for XRechnung still run as XSLT.
 
 ## What is deliberately not included
 
@@ -152,6 +207,11 @@ The embedded artifacts are pinned in `docs/artefakte-quellen.toml`.
 `scripts/pruefe-artefakt-updates.py` compares the pins against the upstream releases of
 KoSIT, EN 16931 and Mustang and exits with 10 when a newer version exists; the procedure
 for adopting one is in `docs/artefakte-aktualisieren.md`.
+
+`crates/core/build.rs` regenerates the table of embedded artifacts on every change under
+`artefakte/`, so adding or removing a file needs no manual step. It also refuses to build a
+Schematron source that is still raw from upstream (`<include>` or `abstract="true"` left in
+it), because such an artifact would silently validate too little at runtime.
 
 ## Structure
 
